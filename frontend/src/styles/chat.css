@@ -1,0 +1,99 @@
+/* Message animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Message styling */
+.message-bubble {
+  animation: slideIn 0.3s ease-out;
+  transition: transform 0.2s ease-in-out;
+}
+
+.message-bubble:hover {
+  transform: scale(1.01);
+}
+
+.agent-avatar {
+  animation: pulse 2s infinite;
+}
+
+.user-message {
+  align-self: flex-end;
+  background-color: var(--user-message-bg, #1976d2);
+  color: var(--user-message-text, white);
+}
+
+.agent-message {
+  align-self: flex-start;
+  background-color: var(--agent-message-bg, #f5f5f5);
+  color: var(--agent-message-text, rgba(0, 0, 0, 0.87));
+}
+
+/* Typing indicator */
+.typing-effect {
+  opacity: 0.7;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Handoff animation */
+.handoff-indicator {
+  animation: pulse 1.5s infinite;
+}
+
+/* Agent colors */
+.agent-sarah { --agent-color: #FF69B4; }
+.agent-mike { --agent-color: #4CAF50; }
+.agent-jessica { --agent-color: #FFA500; }
+.agent-emma { --agent-color: #9C27B0; }
+.agent-jack { --agent-color: #2196F3; }
+.agent-robert { --agent-color: #795548; }
+
+/* Transition effects */
+.chat-transition-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.chat-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.chat-transition-exit {
+  opacity: 1;
+}
+
+.chat-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms, transform 300ms;
+}
