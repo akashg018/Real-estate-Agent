@@ -1,93 +1,107 @@
-import os
 import google.generativeai as genai
-from utils.json_helper import ensure_json_response
+from abc import ABC, abstractmethod
+import logging
+import json
+from utils.logger import setup_logger
 
-class BaseAgent:
-    def __init__(self, name, personality, emoji, role):
-        self.name = name
-        self.personality = personality
-        self.emoji = emoji
-        self.role = role
-        self.api_key = os.getenv('GEMINI_API_KEY')
-        print(f"🔑 Using Gemini API Key: {self.api_key[:5]}..." if self.api_key else "⚠️ GEMINI_API_KEY not found!")
+class BaseAgent(ABC):
+    def __init__(self, api_key):
+        self.logger = setup_logger()
+        self.logger.info(f"Initializing {self.__class__.__name__}")
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-2.0-flash-lite')
+        self.shared_context = {}
+        
+    @abstractmethod
+    def process(self, prompt: str, context: dict = None) -> dict:
+        """
+        Process a user prompt and return a structured response
+        
+        Args:
+            prompt (str): The user's input prompt
+            context (dict): Optional context from previous interactions
+            
+        Returns:
+            dict: A structured response with agent details and message
+        """
+        pass
+    
+    def generate_response(self, prompt: str, context: dict = None) -> dict:
+        """Generate a response using the Gemini model with context awareness"""
+        self.logger.info(f"{self.__class__.__name__} generating response")
+        
+        # Add context to the prompt if available
+        if context:
+            context_str = self._format_context_for_prompt(context)
+            enhanced_prompt = f"""Previous Context:
+{context_str}
 
-        genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash-latest')
+Current Request:
+{prompt}
 
-        self.generation_config = {
-            'temperature': 0.9,
-            'top_p': 0.9,
-            'top_k': 40,
-            'max_output_tokens': 2048,
-        }
+Important: Ensure your response maintains consistency with the previous context, especially regarding:
+- Property prices and details
+- Location information
+- Amenities mentioned
+- Any negotiation points or terms discussed
 
-    def get_greeting(self):
-        prompt = f"""
-As {self.name}, generate a friendly greeting and introduction.
-You are a {self.role} with this personality: {self.personality}
-Include a humorous comment or joke related to real estate.
-
-Format response as JSON:
-{{
-    "greeting": "Your greeting with emojis",
-    "introduction": "Brief role description",
-    "joke": "Your real estate related joke"
-}}
-"""
-        return self._get_openai_response(prompt)
-
-    def get_handoff_message(self, next_agent_name=None):
-        if next_agent_name:
-            prompt = f"""
-Generate a friendly handoff message from {self.name} to {next_agent_name}.
-Include a brief summary of what you've done and why you're handing off.
-
-Format as JSON:
-{{
-    "message": "Your handoff message with emojis",
-    "summary": "Brief summary of your work"
-}}
-"""
+Your response:"""
         else:
-            prompt = f"""
-Generate a friendly closing message from {self.name}.
-Include a positive note about the assistance provided.
-
-Format as JSON:
-{{
-    "message": "Your closing message with emojis",
-    "summary": "Brief summary of help provided"
-}}
-"""
-        return self._get_openai_response(prompt)
-
-    def _get_openai_response(self, prompt, context=None):
+            enhanced_prompt = prompt
+            
         try:
-            context_text = ""
-            if context:
-                context_text = f"\n\nAdditional context:\n{context}"
-
-            full_prompt = f"""You are {self.name}, a {self.role}. {self.personality}
-Your signature emoji is {self.emoji}.
-
-IMPORTANT: Your response must be valid JSON only. Do not include any other text.
-Always include emojis in your responses to make them friendly and engaging.
-
-{prompt}{context_text}
-"""
-
-            response = self.model.generate_content(
-                full_prompt,
-                generation_config=self.generation_config
-            )
-
-            result = ensure_json_response(response.text)
-            print(f"{self.emoji} {self.name} Response:", result)
-            return result
-
+            response = self.model.generate_content(enhanced_prompt)
+            self.logger.info(f"{self.__class__.__name__} response generated successfully")
+            
+            # Try to parse the response as JSON if it's in JSON format
+            try:
+                return json.loads(response.text)
+            except json.JSONDecodeError:
+                # If not JSON, return as regular text
+                return response.text
+                
         except Exception as e:
-            print(f"❌ {self.name} Error: {e}")
-            return {
-                "error": str(e),
-                "message": f"Oops! {self.emoji} Having some technical difficulties. Let me get that fixed for you!"
-            }
+            self.logger.error(f"{self.__class__.__name__} error generating response: {str(e)}")
+            raise
+            
+    def _format_context_for_prompt(self, context: dict) -> str:
+        """Format the context into a string for the prompt"""
+        context_str = []
+        
+        if 'properties' in context:
+            for prop in context['properties']:
+                context_str.append(f"Property: {prop['name']}")
+                context_str.append(f"Price: {prop['price']}")
+                context_str.append(f"Location: {prop.get('location', 'Not specified')}")
+                if 'features' in prop:
+                    context_str.append("Features: " + ", ".join(prop['features']))
+                context_str.append("")
+                
+        if 'amenities' in context:
+            context_str.append("Nearby Amenities:")
+            for amenity in context['amenities']:
+                context_str.append(f"- {amenity['name']} ({amenity.get('distance', 'nearby')})")
+            context_str.append("")
+                
+        if 'negotiation' in context:
+            context_str.append("Negotiation Details:")
+            context_str.append(f"Initial Price: {context['negotiation'].get('initial_price', 'Not specified')}")
+            context_str.append(f"Current Stage: {context['negotiation'].get('stage', 'Not specified')}")
+            context_str.append("")
+            
+        return "\n".join(context_str)
+            
+    def _format_response(self, message: str, details: dict = None) -> dict:
+        """Format the agent's response into a structured format"""
+        return {
+            "message": message,
+            "details": details if details else {}
+        }
+        
+    def update_shared_context(self, context: dict):
+        """Update the shared context with new information"""
+        self.shared_context.update(context)
+        
+    def get_shared_context(self) -> dict:
+        """Get the current shared context"""
+        return self.shared_context.copy()

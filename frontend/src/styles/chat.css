@@ -1,4 +1,12 @@
-/* Message animations */
+/* Custom Properties */
+:root {
+  --animation-timing: 0.3s;
+  --transition-timing: 0.2s;
+  --hover-scale: 1.02;
+  --active-scale: 0.98;
+}
+
+/* Message Animations */
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -11,72 +19,191 @@
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
-/* Message styling */
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(10deg); }
+  75% { transform: rotate(-10deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Agent Personalities */
+.agent {
+  transition: all var(--transition-timing) ease;
+}
+
+.agent-sarah {
+  --agent-color: #FF69B4;
+  --agent-gradient: linear-gradient(135deg, #FF69B4, #FF1493);
+}
+
+.agent-mike {
+  --agent-color: #4CAF50;
+  --agent-gradient: linear-gradient(135deg, #4CAF50, #45a049);
+}
+
+.agent-jessica {
+  --agent-color: #FFA500;
+  --agent-gradient: linear-gradient(135deg, #FFA500, #FF8C00);
+}
+
+.agent-emma {
+  --agent-color: #9C27B0;
+  --agent-gradient: linear-gradient(135deg, #9C27B0, #7B1FA2);
+}
+
+.agent-robert {
+  --agent-color: #795548;
+  --agent-gradient: linear-gradient(135deg, #795548, #5D4037);
+}
+
+/* Agent Avatars */
+.agent-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  background: var(--agent-gradient);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-timing) ease;
+}
+
+.agent-avatar:hover {
+  transform: scale(var(--hover-scale));
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Message Bubbles */
 .message-bubble {
-  animation: slideIn 0.3s ease-out;
-  transition: transform 0.2s ease-in-out;
+  animation: slideIn var(--animation-timing) ease-out;
+  transition: all var(--transition-timing) ease;
+  border-radius: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 12px 16px;
+  margin: 8px 0;
 }
 
 .message-bubble:hover {
-  transform: scale(1.01);
-}
-
-.agent-avatar {
-  animation: pulse 2s infinite;
+  transform: scale(var(--hover-scale));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .user-message {
   align-self: flex-end;
-  background-color: var(--user-message-bg, #1976d2);
-  color: var(--user-message-text, white);
+  background: linear-gradient(135deg, #1976d2, #1565c0);
+  color: white;
+  margin-left: 20%;
 }
 
 .agent-message {
   align-self: flex-start;
-  background-color: var(--agent-message-bg, #f5f5f5);
-  color: var(--agent-message-text, rgba(0, 0, 0, 0.87));
+  background: white;
+  color: #333;
+  margin-right: 20%;
+  border-left: 4px solid var(--agent-color);
 }
 
-/* Typing indicator */
-.typing-effect {
-  opacity: 0.7;
-  animation: fadeIn 0.3s ease-out;
+/* Typing Indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  animation: fadeIn var(--animation-timing) ease-out;
 }
 
-/* Handoff animation */
-.handoff-indicator {
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--agent-color);
+  animation: bounce 1s infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Interactive Elements */
+.interactive-element {
+  transition: all var(--transition-timing) ease;
+  cursor: pointer;
+}
+
+.interactive-element:hover {
+  transform: scale(var(--hover-scale));
+}
+
+.interactive-element:active {
+  transform: scale(var(--active-scale));
+}
+
+/* Agent Greeting Animation */
+.agent-greeting {
+  animation: slideIn var(--animation-timing) ease-out;
+}
+
+.agent-greeting .emoji {
+  display: inline-block;
+  animation: wave 1s ease-in-out;
+}
+
+/* Property Cards */
+.property-card {
+  transition: all var(--transition-timing) ease;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.property-card:hover {
+  transform: scale(var(--hover-scale));
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Amenity Items */
+.amenity-item {
+  transition: all var(--transition-timing) ease;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.amenity-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: translateX(5px);
+}
+
+/* Loading States */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+}
+
+.loading-indicator .spinner {
   animation: pulse 1.5s infinite;
 }
 
-/* Agent colors */
-.agent-sarah { --agent-color: #FF69B4; }
-.agent-mike { --agent-color: #4CAF50; }
-.agent-jessica { --agent-color: #FFA500; }
-.agent-emma { --agent-color: #9C27B0; }
-.agent-jack { --agent-color: #2196F3; }
-.agent-robert { --agent-color: #795548; }
-
-/* Transition effects */
+/* Transition Effects */
 .chat-transition-enter {
   opacity: 0;
   transform: translateY(20px);
@@ -85,15 +212,44 @@
 .chat-transition-enter-active {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 300ms, transform 300ms;
+  transition: opacity var(--animation-timing),
+              transform var(--animation-timing);
 }
 
 .chat-transition-exit {
   opacity: 1;
+  transform: translateY(0);
 }
 
 .chat-transition-exit-active {
   opacity: 0;
   transform: translateY(-20px);
-  transition: opacity 300ms, transform 300ms;
+  transition: opacity var(--animation-timing),
+              transform var(--animation-timing);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .message-bubble {
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+  
+  .agent-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

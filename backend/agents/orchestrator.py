@@ -1,224 +1,395 @@
+from typing import Dict, List
 from .base_agent import BaseAgent
-from .bargain import BargainAgent
-from .contract import ContractAgent
-from .lifestyle import LifestyleAgent
-from .location import LocationAgent
-from .residential import ResidentialAgent
+from .property_search import PropertySearchAgent
+from .amenities import AmenitiesAgent
+from .negotiation import NegotiationAgent
+from .closing import ClosingAgent
+import google.generativeai as genai
+import json
 
-class OrchestratorAgent(BaseAgent):
-    def __init__(self):
-        super().__init__(
-            name="Sarah",
-            personality="I'm Sarah, your real estate team leader! 🎭 I'll coordinate everything to make your property search smooth and clear.",
-            emoji="🎭",
-            role="Real Estate Team Lead"
-        )
-        self.residential_agent = ResidentialAgent()
-        self.bargain_agent = BargainAgent()
-        self.contract_agent = ContractAgent()
-        self.lifestyle_agent = LifestyleAgent()
-        self.location_agent = LocationAgent()
-
-    def process_request(self, user_message):
-        conversation_steps = []
-        context = {"user_message": user_message}
-
-        # Step 1: Mike (ResidentialAgent)
-        residential_data = self.residential_agent.get_response(user_message)
-        context["residential"] = residential_data
+class Orchestrator:
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel('gemini-2.0-flash-lite')
         
-        conversation_steps.extend([
-            {
-                "name": "Mike",
-                "role": "Residential Property Specialist",
-                "emoji": "🏠",
-                "type": "property_search",
-                "message": residential_data.get('initial_search', {}).get('message', ""),
-                "output": residential_data,
-                "timestamp": self._get_timestamp()
+        # Initialize all agents with their personalities
+        self.agents = {
+            'property_search': {
+                'agent': PropertySearchAgent(api_key),
+                'name': 'Mike',
+                'role': 'Property Search Expert',
+                'emoji': '🏠',
+                'description': 'Specialized in finding perfect properties based on your requirements'
             },
-            self._get_handoff_message("Mike", "Jessica", residential_data)
-        ])
-
-        # Step 2: Jessica (BargainAgent)
-        bargain_data = self.bargain_agent.get_response(residential_data)
-        context["bargain"] = bargain_data
-        
-        conversation_steps.extend([
-            {
-                "name": "Jessica",
-                "role": "Negotiation Specialist",
-                "emoji": "💰",
-                "type": "negotiation",
-                "message": bargain_data.get('introduction', {}).get('message', ""),
-                "output": bargain_data,
-                "timestamp": self._get_timestamp()
+            'amenities': {
+                'agent': AmenitiesAgent(api_key),
+                'name': 'Emma',
+                'role': 'Amenities Research Specialist',
+                'emoji': '🌟',
+                'description': 'Researches all amenities within 5 miles of properties'
             },
-            self._get_handoff_message("Jessica", "Robert", bargain_data)
-        ])
-
-        # Step 3: Robert (ContractAgent)
-        contract_context = {
-            **context,
-            "negotiation_points": bargain_data.get("negotiation_points", [])
-        }
-        contract_data = self.contract_agent.get_response(contract_context)
-        context["contract"] = contract_data
-        
-        conversation_steps.extend([
-            {
-                "name": "Robert",
-                "role": "Legal Advisor",
-                "emoji": "⚖️",
-                "type": "legal",
-                "message": contract_data.get('initial_search', {}).get('message', ""),
-                "output": contract_data,
-                "timestamp": self._get_timestamp()
+            'negotiation': {
+                'agent': NegotiationAgent(api_key),
+                'name': 'Jessica',
+                'role': 'Master Negotiator',
+                'emoji': '💰',
+                'description': 'Expert in property price negotiations and deal-making'
             },
-            self._get_handoff_message("Robert", "Emma", contract_data)
-        ])
-
-        # Step 4: Emma (LifestyleAgent)
-        lifestyle_context = {
-            **context,
-            "properties": residential_data.get('initial_search', {}).get('properties', [])
-        }
-        lifestyle_data = self.lifestyle_agent.get_response(lifestyle_context)
-        context["lifestyle"] = lifestyle_data
-        
-        conversation_steps.extend([
-            {
-                "name": "Emma",
-                "role": "Lifestyle Consultant",
-                "emoji": "🌟",
-                "type": "lifestyle",
-                "message": lifestyle_data.get('lifestyle_profile', {}).get('message', ""),
-                "output": lifestyle_data,
-                "timestamp": self._get_timestamp()
-            },
-            self._get_handoff_message("Emma", "Jack", lifestyle_data)
-        ])
-
-        # Step 5: Jack (LocationAgent)
-        location_context = {
-            **context,
-            "lifestyle_preferences": lifestyle_data.get('lifestyle_profile', {}).get('lifestyle_preferences', {})
-        }
-        location_data = self.location_agent.get_response(location_context)
-        context["location"] = location_data
-        
-        conversation_steps.extend([
-            {
-                "name": "Jack",
-                "role": "Location Expert",
-                "emoji": "🗺️",
-                "type": "location",
-                "message": location_data.get('overview', {}).get('message', ""),
-                "output": location_data,
-                "timestamp": self._get_timestamp()
-            },
-            self._get_handoff_message("Jack", None, location_data)
-        ])
-
-        # Final Summary from Sarah
-        summary_prompt = f"""Based on all agent inputs:
-User Request: {user_message}
-
-Mike's Properties: {residential_data.get('final_recommendations', {})}
-Jessica's Negotiation: {bargain_data.get('strategy', {})}
-Robert's Legal: {contract_data.get('final_recommendations', {})}
-Emma's Lifestyle: {lifestyle_data.get('recommendations', {})}
-Jack's Location: {location_data.get('recommendations', {})}
-
-Provide a final recommendation as JSON:
-{{
-    "message": "Final summary with emojis",
-    "top_properties": [
-        {{
-            "name": "Property name",
-            "overall_score": "1-10 with explanation",
-            "key_advantages": ["3-4 main selling points"],
-            "considerations": ["1-2 things to keep in mind"],
-            "next_steps": ["2-3 immediate actions"]
-        }}
-    ],
-    "team_insights": {{
-        "residential": "Key property insights",
-        "negotiation": "Main negotiation opportunities",
-        "legal": "Important legal considerations",
-        "lifestyle": "Lifestyle alignment highlights",
-        "location": "Location advantages"
-    }},
-    "action_plan": ["3-4 recommended next steps"],
-    "timeline": "Estimated timeline for viewing/offer/closing"
-}}"""
-        
-        final_summary = self._get_openai_response(summary_prompt)
-        
-        conversation_steps.append({
-            "name": "Sarah",
-            "role": "Real Estate Team Lead",
-            "emoji": "🎭",
-            "type": "summary",
-            "message": final_summary.get('message', ""),
-            "output": {
-                "summary": final_summary,
-                "context": context
-            },
-            "timestamp": self._get_timestamp()
-        })
-
-        return {"conversation": conversation_steps}
-
-    def _get_timestamp(self):
-        from datetime import datetime
-        return datetime.now().isoformat()
-
-    def _get_handoff_message(self, from_agent, to_agent, context):
-        if to_agent:
-            message_prompt = f"""Create a handoff message from {from_agent} to {to_agent} based on:
-{context}
-
-Return as JSON:
-{{
-    "message": "Friendly handoff with emojis explaining what was done and what's next",
-    "key_points": ["2-3 main points to highlight"]
-}}"""
-        else:
-            message_prompt = f"""Create a completion message from {from_agent} based on:
-{context}
-
-Return as JSON:
-{{
-    "message": "Friendly completion message with emojis",
-    "key_findings": ["2-3 main findings"]
-}}"""
-
-        handoff = self._get_openai_response(message_prompt)
-        
-        return {
-            "name": "Sarah",
-            "role": "Real Estate Team Lead",
-            "emoji": "🎭",
-            "type": "orchestration",
-            "message": handoff.get('message', ""),
-            "key_points": handoff.get('key_points', handoff.get('key_findings', [])),
-            "timestamp": self._get_timestamp()
-        }
-
-        conversation_steps.append({
-            "name": "Sarah",
-            "role": "Real Estate Team Lead",
-            "emoji": "🎭",
-            "type": "summary",
-            "message": final_summary.get('message', "Here's my final recommendation."),
-            "output": {
-                "residential_summary": residential_data,
-                "negotiation_summary": bargain_data,
-                "legal_summary": contract_data,
-                "lifestyle_summary": lifestyle_data,
-                "location_summary": location_data
+            'closing': {
+                'agent': ClosingAgent(api_key),
+                'name': 'Robert',
+                'role': 'Closing Specialist',
+                'emoji': '📝',
+                'description': 'Handles all aspects of closing and property handover'
             }
+        }
+        self.conversation_history = []
+        
+    def welcome_message(self) -> dict:
+        """Return a structured welcome message introducing the team"""
+        welcome_msg = {
+            "conversation": [
+                {
+                    "name": "Sarah",
+                    "role": "Lead Real Estate Advisor",
+                    "emoji": "👱‍♀️",
+                    "message": "Welcome! I'm Sarah, your personal Real Estate Advisor. I lead a specialized team of expert agents ready to help you find and secure your perfect property.\n\nLet me introduce you to our team:\n\n",
+                    "type": "greeting"
+                }
+            ]
+        }
+        
+        # Add each agent's introduction
+        for agent_info in self.agents.values():
+            welcome_msg["conversation"].append({
+                "name": agent_info['name'],
+                "role": agent_info['role'],
+                "emoji": agent_info['emoji'],
+                "message": f"Hi! I'm {agent_info['name']}, {agent_info['description']}.",
+                "type": "introduction"
+            })
+            
+        # Add final prompt
+        welcome_msg["conversation"].append({
+            "name": "Sarah",
+            "role": "Lead Real Estate Advisor",
+            "emoji": "👱‍♀️",
+            "message": "\nHow can we help you today? Whether you're looking for a property, need information about amenities, want to negotiate a price, or ready to close a deal, our team is here to assist!",
+            "type": "prompt"
         })
+        
+        return welcome_msg
+        
+    def determine_agent(self, prompt: str) -> str:
+        """Determine which agent should handle the user's request"""
+        analysis_prompt = f"""As a Real Estate Team Lead, analyze this user request and determine which specialized agent would be most appropriate to handle it. Consider:
 
-        return {"conversation": conversation_steps}
+Property Search Agent (Mike):
+- Initial property searches
+- Finding properties matching specific criteria
+- Property recommendations
+
+Amenities Agent (Emma):
+- Research nearby amenities
+- Neighborhood analysis
+- Location-based services within 5 miles
+
+Negotiation Agent (Jessica):
+- Price negotiations
+- Deal structuring
+- Offer strategies
+
+Closing Agent (Robert):
+- Closing process
+- Documentation
+- Final handover
+
+User Request: {prompt}
+
+Respond with just one agent type: property_search, amenities, negotiation, or closing"""
+        
+        response = self.model.generate_content(analysis_prompt)
+        return response.text.strip().lower()
+        
+    def process_request(self, prompt: str) -> dict:
+        """Process the user's request and return a structured response"""
+        # Keep track of conversation
+        self.conversation_history.append({"role": "user", "message": prompt})
+        
+        # Determine which agent should handle the request
+        agent_type = self.determine_agent(prompt)
+        
+        if agent_type in self.agents:
+            # Get agent info
+            agent_info = self.agents[agent_type]
+            
+            # First, have Sarah acknowledge and hand off
+            response = {
+                "conversation": [
+                    {
+                        "name": "Sarah",
+                        "role": "Lead Real Estate Advisor",
+                        "emoji": "👱‍♀️",
+                        "message": f"I'll have {agent_info['name']}, our {agent_info['role']}, assist you with this.",
+                        "type": "handoff"
+                    }
+                ]
+            }
+            
+            try:
+                # Get relevant context from conversation history
+                context = self._build_context_for_agent(agent_type)
+                
+                # Process request with the appropriate agent
+                agent_response = agent_info['agent'].process(prompt, context)
+                
+                # Structure the raw response if it's a string
+                if isinstance(agent_response, str):
+                    agent_response = {
+                        "message": agent_response,
+                        "details": {}
+                    }
+                
+                # Format and update shared context
+                formatted_output = self._format_agent_output(agent_type, agent_response["message"])
+                self._update_shared_context(agent_type, formatted_output)
+                
+                # Add agent's response
+                response["conversation"].append({
+                    "name": agent_info['name'],
+                    "role": agent_info['role'],
+                    "emoji": agent_info['emoji'],
+                    "message": agent_response["message"],
+                    "type": "response",
+                    "details": formatted_output
+                })
+                
+                # Keep track of conversation with context
+                self.conversation_history.append({
+                    "role": "agent",
+                    "agent": agent_info['name'],
+                    "message": agent_response["message"],
+                    "context": formatted_output
+                })
+                
+            except Exception as e:
+                # Generate a friendly fallback response based on agent type
+                fallback_responses = {
+                    'property_search': "I understand you're looking for a property. Could you tell me more about what you're looking for in terms of location, budget, and size?",
+                    'amenities': "I'd be happy to check the amenities. Could you specify which property or area you're interested in?",
+                    'negotiation': "I'll help you negotiate the best price. Could you confirm which property you're interested in?",
+                    'closing': "I'll assist with the closing process. Could you specify which property you're planning to move forward with?"
+                }
+                
+                friendly_response = fallback_responses.get(
+                    agent_type,
+                    f"I'll help you with that! Could you provide a few more details about what you're looking for?"
+                )
+                
+                response["conversation"].append({
+                    "name": agent_info['name'],
+                    "role": agent_info['role'],
+                    "emoji": agent_info['emoji'],
+                    "message": friendly_response,
+                    "type": "clarification"
+                })
+            
+            return response
+            
+        else:
+            # If we can't determine the appropriate agent
+            return {
+                "conversation": [
+                    {
+                        "name": "Sarah",
+                        "role": "Lead Real Estate Advisor",
+                        "emoji": "👱‍♀️",
+                        "message": "I apologize, but I'm not sure which of our specialists would be best suited to help with your request. Could you please provide more specific details about what you're looking for?",
+                        "type": "clarification"
+                    }
+                ]
+            }
+            
+    def _format_agent_output(self, agent_type: str, response: str) -> dict:
+        """Format the agent response into structured output based on agent type"""
+        if agent_type == "property_search":
+            return {
+                "final_recommendations": {
+                    "properties": [
+                        self._extract_property_info(response)
+                    ]
+                }
+            }
+        elif agent_type == "amenities":
+            return {
+                "nearby_amenities": self._extract_amenities_info(response)
+            }
+        elif agent_type == "negotiation":
+            return {
+                "strategy": {
+                    "message": response,
+                    "points": self._extract_negotiation_points(response)
+                }
+            }
+        elif agent_type == "closing":
+            return {
+                "closing_details": self._extract_closing_info(response)
+            }
+        return {}
+        
+    def _extract_property_info(self, response: str) -> dict:
+        """Extract property information from the response"""
+        lines = response.split('\n')
+        property_info = {
+            "name": "",
+            "price": "",
+            "highlight": "",
+            "features": []
+        }
+        
+        for line in lines:
+            if line.strip():
+                if not property_info["name"]:
+                    property_info["name"] = line.strip()
+                elif "price" in line.lower() and not property_info["price"]:
+                    property_info["price"] = line.strip()
+                elif not property_info["highlight"]:
+                    property_info["highlight"] = line.strip()
+                else:
+                    property_info["features"].append(line.strip())
+                    
+        return property_info
+        
+    def _extract_amenities_info(self, response: str) -> list:
+        """Extract amenities information from the response"""
+        lines = response.split('\n')
+        amenities = []
+        current_category = ""
+        
+        for line in lines:
+            if line.strip():
+                if line.endswith(':'):
+                    current_category = line.strip(':')
+                else:
+                    amenities.append({
+                        "amenity": line.strip(),
+                        "category": current_category,
+                        "distance": "Nearby",
+                        "details": ""
+                    })
+        
+        return amenities
+        
+    def _extract_negotiation_points(self, response: str) -> list:
+        """Extract negotiation points from the response"""
+        lines = response.split('\n')
+        points = []
+        
+        for line in lines:
+            if line.strip() and not line.endswith(':'):
+                points.append(line.strip())
+                
+        return points
+        
+    def _extract_closing_info(self, response: str) -> dict:
+        """Extract closing information from the response"""
+        lines = response.split('\n')
+        closing_info = {
+            "documents_needed": [],
+            "timeline": [],
+            "key_terms": {}
+        }
+        
+        current_section = None
+        for line in lines:
+            if line.strip():
+                if "document" in line.lower():
+                    current_section = "documents"
+                elif "timeline" in line.lower():
+                    current_section = "timeline"
+                elif ":" in line:
+                    key, value = line.split(":", 1)
+                    closing_info["key_terms"][key.strip()] = value.strip()
+                elif current_section == "documents":
+                    closing_info["documents_needed"].append(line.strip())
+                elif current_section == "timeline":
+                    closing_info["timeline"].append(line.strip())
+                    
+        return closing_info
+        
+    def _build_context_for_agent(self, agent_type: str) -> dict:
+        """Build relevant context for the agent based on conversation history"""
+        context = {
+            "properties": [],
+            "amenities": [],
+            "negotiation": {},
+            "closing": {}
+        }
+        
+        # Go through conversation history in reverse to get most recent context
+        for entry in reversed(self.conversation_history):
+            if entry["role"] == "agent" and "context" in entry:
+                if "final_recommendations" in entry["context"]:
+                    for prop in entry["context"]["final_recommendations"]["properties"]:
+                        if prop not in context["properties"]:
+                            context["properties"].append(prop)
+                            
+                elif "nearby_amenities" in entry["context"]:
+                    for amenity in entry["context"]["nearby_amenities"]:
+                        if amenity not in context["amenities"]:
+                            context["amenities"].append(amenity)
+                            
+                elif "strategy" in entry["context"]:
+                    context["negotiation"].update(entry["context"]["strategy"])
+                    
+                elif "closing_details" in entry["context"]:
+                    context["closing"].update(entry["context"]["closing_details"])
+        
+        return context
+        
+    def _update_shared_context(self, agent_type: str, new_context: dict):
+        """Update the shared context with new information from an agent"""
+        # Update the context of the specific agent
+        agent = self.agents[agent_type]["agent"]
+        agent.update_shared_context(new_context)
+        
+        # Share relevant information with other agents
+        for other_type, other_info in self.agents.items():
+            if other_type != agent_type:
+                other_agent = other_info["agent"]
+                # Share only relevant information based on agent type
+                shared_info = self._filter_context_for_agent(other_type, new_context)
+                other_agent.update_shared_context(shared_info)
+                
+    def _filter_context_for_agent(self, agent_type: str, context: dict) -> dict:
+        """Filter context based on what's relevant for each agent type"""
+        filtered_context = {}
+        
+        if agent_type == "property_search":
+            # Property search needs to know about prices and features
+            if "final_recommendations" in context:
+                filtered_context["properties"] = context["final_recommendations"]["properties"]
+            if "strategy" in context and "price" in context["strategy"]:
+                filtered_context["negotiation"] = {"price": context["strategy"]["price"]}
+                
+        elif agent_type == "amenities":
+            # Amenities agent needs property locations
+            if "final_recommendations" in context:
+                filtered_context["properties"] = [{
+                    "name": p["name"],
+                    "location": p.get("location", "Unknown")
+                } for p in context["final_recommendations"]["properties"]]
+                
+        elif agent_type == "negotiation":
+            # Negotiation agent needs property details and prices
+            if "final_recommendations" in context:
+                filtered_context["properties"] = context["final_recommendations"]["properties"]
+            if "nearby_amenities" in context:
+                filtered_context["amenities"] = context["nearby_amenities"]
+                
+        elif agent_type == "closing":
+            # Closing agent needs all details
+            filtered_context = context
+            
+        return filtered_context

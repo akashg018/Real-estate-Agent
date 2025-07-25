@@ -14,11 +14,11 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider,
+  // Divider, // Removed unused import
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Badge
+  // Badge // Removed unused import
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -47,15 +47,17 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
         try {
           const parsed = JSON.parse(lastMessage.content);
           if (parsed.conversation) {
+            const timestamp = Date.now();
             const formattedMessages = parsed.conversation.map((msg, index) => ({
-              id: index,
+              id: `${timestamp}-${index}-${msg.name || 'user'}-${msg.type || 'message'}`,
               type: 'agent',
               agent: msg.name,
               role: msg.role,
               emoji: msg.emoji,
               content: msg.message,
               messageType: msg.type,
-              output: msg.output
+              output: msg.output,
+              timestamp: timestamp
             }));
             setMessages([...rawMessages.slice(0, -1), ...formattedMessages]);
           } else {
@@ -105,8 +107,8 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
     transition: { duration: 0.3 }
   };
 
-  const renderPropertyCard = (property, index) => (
-    <Grid item xs={12} md={6} key={index}>
+  const renderPropertyCard = (property, uniqueKey) => (
+    <Grid item xs={12} md={6} key={uniqueKey}>
       <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
         <Card elevation={3} sx={{ height: '100%' }}>
           <CardContent>
@@ -133,7 +135,7 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {property.features?.map((feature, idx) => (
                 <Chip 
-                  key={idx} 
+                  key={`feature-${feature}-${idx}`} 
                   label={feature} 
                   size="small" 
                   variant="outlined"
@@ -156,57 +158,119 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
           <AttachMoneyIcon sx={{ mr: 1 }} /> Negotiation Strategy
         </Typography>
 
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography>Expected Outcomes</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <Card sx={{ bgcolor: 'success.light', color: 'success.contrastText' }}>
-                  <CardContent>
-                    <Typography variant="subtitle2">Best Case</Typography>
-                    <Typography variant="body2">{output.expected_outcome?.best_case}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Card sx={{ bgcolor: 'info.light', color: 'info.contrastText' }}>
-                  <CardContent>
-                    <Typography variant="subtitle2">Realistic</Typography>
-                    <Typography variant="body2">{output.expected_outcome?.realistic}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Card sx={{ bgcolor: 'warning.light', color: 'warning.contrastText' }}>
-                  <CardContent>
-                    <Typography variant="subtitle2">Walk Away</Typography>
-                    <Typography variant="body2">{output.expected_outcome?.walkaway}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </AccordionDetails>
-        </Accordion>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12}>
+            <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>Market Analysis</Typography>
+                <Typography variant="body2" sx={{ mb: 2 }}>{output.market_analysis?.summary}</Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2">Recent Sales</Typography>
+                    <Typography variant="body2">{output.market_analysis?.recent_sales}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2">Market Trend</Typography>
+                    <Typography variant="body2">{output.market_analysis?.trend}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2">Days on Market</Typography>
+                    <Typography variant="body2">{output.market_analysis?.days_on_market}</Typography>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography>Leverage Points</Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <List>
-              {output.analysis?.leverage_points?.map((point, idx) => (
-                <ListItem key={idx}>
-                  <ListItemIcon>
-                    <CheckCircleIcon color="success" />
-                  </ListItemIcon>
-                  <ListItemText primary={point} />
-                </ListItem>
-              ))}
-            </List>
-          </AccordionDetails>
-        </Accordion>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={4}>
+            <Card sx={{ bgcolor: 'success.light', color: 'success.contrastText', height: '100%' }}>
+              <CardContent>
+                <Typography variant="subtitle1" gutterBottom>Best Case</Typography>
+                <Typography variant="h6" sx={{ mb: 1 }}>{output.expected_outcome?.best_case?.price}</Typography>
+                <Typography variant="body2">{output.expected_outcome?.best_case?.strategy}</Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="caption">Probability:</Typography>
+                  <Typography variant="body2">{output.expected_outcome?.best_case?.probability}</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card sx={{ bgcolor: 'info.light', color: 'info.contrastText', height: '100%' }}>
+              <CardContent>
+                <Typography variant="subtitle1" gutterBottom>Realistic Target</Typography>
+                <Typography variant="h6" sx={{ mb: 1 }}>{output.expected_outcome?.realistic?.price}</Typography>
+                <Typography variant="body2">{output.expected_outcome?.realistic?.strategy}</Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="caption">Probability:</Typography>
+                  <Typography variant="body2">{output.expected_outcome?.realistic?.probability}</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card sx={{ bgcolor: 'warning.light', color: 'warning.contrastText', height: '100%' }}>
+              <CardContent>
+                <Typography variant="subtitle1" gutterBottom>Walk Away Point</Typography>
+                <Typography variant="h6" sx={{ mb: 1 }}>{output.expected_outcome?.walkaway?.price}</Typography>
+                <Typography variant="body2">{output.expected_outcome?.walkaway?.reason}</Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="caption">Market Impact:</Typography>
+                  <Typography variant="body2">{output.expected_outcome?.walkaway?.impact}</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography>Leverage Points</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <List dense>
+                  {output.analysis?.leverage_points?.map((point, idx) => (
+                    <ListItem key={idx}>
+                      <ListItemIcon>
+                        <CheckCircleIcon color="success" />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={point.point}
+                        secondary={point.explanation}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </AccordionDetails>
+            </Accordion>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography>Negotiation Timeline</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <List dense>
+                  {output.timeline?.map((step, idx) => (
+                    <ListItem key={idx}>
+                      <ListItemIcon>
+                        {idx + 1}.
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={step.action}
+                        secondary={step.timing}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </AccordionDetails>
+            </Accordion>
+          </Grid>
+        </Grid>
       </Box>
     );
   };
@@ -217,21 +281,50 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
     return (
       <Box sx={{ mt: 2 }}>
         <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-          <GavelIcon sx={{ mr: 1 }} /> Legal Requirements
+          <GavelIcon sx={{ mr: 1 }} /> Closing Process Overview
         </Typography>
 
         <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Card sx={{ mb: 3, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>Current Status</Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2">Phase</Typography>
+                    <Typography variant="body1">{output.status?.current_phase}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2">Expected Closing</Typography>
+                    <Typography variant="body1">{output.status?.expected_closing_date}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle2">Next Action</Typography>
+                    <Typography variant="body1">{output.status?.next_action}</Typography>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ height: '100%' }}>
               <CardContent>
                 <Typography variant="subtitle1" gutterBottom>Required Documents</Typography>
                 <List dense>
                   {output.documents_needed?.map((doc, idx) => (
                     <ListItem key={idx}>
                       <ListItemIcon>
-                        <CheckCircleIcon fontSize="small" />
+                        <CheckCircleIcon fontSize="small" color={doc.status === 'completed' ? 'success' : 'action'} />
                       </ListItemIcon>
-                      <ListItemText primary={doc} />
+                      <ListItemText 
+                        primary={doc.name}
+                        secondary={
+                          <Typography variant="caption" color={doc.deadline ? 'error' : 'textSecondary'}>
+                            {doc.status === 'pending' ? `Due by: ${doc.deadline}` : `Completed: ${doc.completed_date}`}
+                          </Typography>
+                        }
+                      />
                     </ListItem>
                   ))}
                 </List>
@@ -240,22 +333,80 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
           </Grid>
 
           <Grid item xs={12} md={6}>
-            <Card>
+            <Card sx={{ height: '100%' }}>
               <CardContent>
-                <Typography variant="subtitle1" gutterBottom>Key Terms</Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Typography variant="body2">
-                    <strong>Lease Term:</strong> {output.key_terms?.lease_term}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Late Fee:</strong> {output.key_terms?.late_fee}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Inspection Period:</strong> {output.key_terms?.inspection_period}
-                  </Typography>
+                <Typography variant="subtitle1" gutterBottom>Transaction Details</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box>
+                    <Typography variant="subtitle2" color="primary">Purchase Agreement</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
+                      <Typography variant="body2">
+                        <strong>Purchase Price:</strong> {output.transaction?.purchase_price}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Earnest Money:</strong> {output.transaction?.earnest_money}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Down Payment:</strong> {output.transaction?.down_payment}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="subtitle2" color="primary">Key Dates</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
+                      <Typography variant="body2">
+                        <strong>Inspection Period:</strong> {output.key_dates?.inspection_period}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Title Review:</strong> {output.key_dates?.title_review}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Final Walkthrough:</strong> {output.key_dates?.final_walkthrough}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="subtitle2" color="primary">Closing Costs (Estimated)</Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
+                      {output.closing_costs?.map((cost, idx) => (
+                        <Typography key={idx} variant="body2">
+                          <strong>{cost.name}:</strong> {cost.amount}
+                        </Typography>
+                      ))}
+                    </Box>
+                  </Box>
                 </Box>
               </CardContent>
             </Card>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography>Closing Process Timeline</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <List dense>
+                  {output.timeline?.map((step, idx) => (
+                    <ListItem key={idx}>
+                      <ListItemIcon>
+                        <CheckCircleIcon fontSize="small" color={step.completed ? 'success' : 'action'} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={step.action}
+                        secondary={
+                          <Typography variant="caption">
+                            {step.completed ? `Completed: ${step.completion_date}` : `Due: ${step.due_date}`}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </AccordionDetails>
+            </Accordion>
           </Grid>
         </Grid>
       </Box>
@@ -281,7 +432,7 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
                 </Typography>
                 <List dense>
                   {output.nearby_amenities?.map((amenity, idx) => (
-                    <ListItem key={idx}>
+                    <ListItem key={`amenity-${amenity.amenity}-${idx}`}>
                       <ListItemText 
                         primary={amenity.amenity}
                         secondary={`${amenity.distance} - ${amenity.details}`}
@@ -389,7 +540,7 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
               <HomeIcon sx={{ mr: 1 }} /> Property Recommendations
             </Typography>
             <Grid container spacing={2}>
-              {properties.map((property, idx) => renderPropertyCard(property, idx))}
+              {properties.map((property, idx) => renderPropertyCard(property, `property-${property.name}-${idx}`))}
             </Grid>
           </Box>
         );
@@ -461,12 +612,10 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
     }
   };
 
-  const renderAgentMessage = (message) => {
-    const isTransition = message.messageType === 'handoff' || message.type === 'typing';
-    
+  const renderAgentMessage = (message, uniqueKey) => {    
     return (
       <motion.div
-        key={message.id}
+        key={uniqueKey}
         layout
         {...messageTransition}
       >
@@ -475,82 +624,66 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
           flexDirection: 'column',
           alignItems: message.type === 'user' ? 'flex-end' : 'flex-start',
           width: '100%',
-          mb: 3
+          mb: 2
         }}>
-          {/* Agent Header */}
+          {/* Compact Agent Header */}
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
             gap: 1,
-            mb: 1 
+            mb: 0.5
           }}>
-            {/* Agent Avatar */}
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <Box sx={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: `${getAgentColor(message.agent)}20`,
-                color: getAgentColor(message.agent),
-                fontSize: '1.2rem',
-                fontWeight: 'bold',
-                border: `2px solid ${getAgentColor(message.agent)}40`,
-                transition: 'all 0.3s ease'
-              }}>
-                {message.emoji || '👤'}
-              </Box>
-            </motion.div>
-
-            {/* Agent Name and Role */}
-            <Box>
-              <Typography variant="subtitle1" sx={{ color: getAgentColor(message.agent), fontWeight: 'bold' }}>
-                {message.agent}
-              </Typography>
-              {message.role && (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {message.role}
-                </Typography>
-              )}
+            {/* Simple Agent Avatar with Emoji */}
+            <Box sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: `${getAgentColor(message.agent)}15`,
+              color: getAgentColor(message.agent),
+              fontSize: '1rem',
+              border: `1px solid ${getAgentColor(message.agent)}30`
+            }}>
+              {message.emoji || '👤'}
             </Box>
 
-            {/* Message Type Indicator */}
-            {message.messageType && message.messageType !== 'default' && (
-              <motion.div whileHover={{ scale: 1.05 }}>
+            {/* Compact Agent Info */}
+            <Typography variant="body2" sx={{ 
+              color: getAgentColor(message.agent),
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              {message.agent}
+              {message.messageType && message.messageType !== 'default' && (
                 <Chip 
                   label={message.messageType}
                   size="small"
                   sx={{ 
-                    ml: 1,
-                    backgroundColor: `${getAgentColor(message.agent)}20`,
-                    color: getAgentColor(message.agent),
-                    fontWeight: 'medium'
+                    height: 20,
+                    fontSize: '0.7rem',
+                    backgroundColor: `${getAgentColor(message.agent)}15`,
+                    color: getAgentColor(message.agent)
                   }}
                 />
-              </motion.div>
-            )}
+              )}
+            </Typography>
           </Box>
 
           {/* Message Content */}
-          <motion.div
-            whileHover={{ scale: 1.005 }}
-            transition={{ type: "spring", stiffness: 300 }}
-            style={{ width: '100%', maxWidth: '95%' }}
-          >
+          <Box sx={{ width: '100%', maxWidth: message.type === 'user' ? '70%' : '85%' }}>
             <Paper 
-              elevation={2}
+              elevation={1}
               sx={{ 
                 backgroundColor: message.type === 'user' ? 'primary.main' : 'background.paper',
                 color: message.type === 'user' ? 'white' : 'text.primary',
-                borderRadius: 2,
-                p: 2,
+                borderRadius: 1.5,
+                p: 1.5,
                 position: 'relative',
-                border: `1px solid ${getAgentColor(message.agent)}20`,
+                border: `1px solid ${message.type === 'user' ? 'transparent' : getAgentColor(message.agent)}15`,
               }}
             >
               {message.type === 'typing' ? (
@@ -572,7 +705,7 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
                 </>
               )}
             </Paper>
-          </motion.div>
+          </Box>
 
           {/* Transition Arrow for Handoffs */}
           {message.messageType === 'handoff' && (
@@ -623,11 +756,15 @@ function ChatInterface({ messages: rawMessages, onSendMessage, loading }) {
         }}
       >
         <AnimatePresence mode="popLayout">
-          {messages.map((message, index) => (
-            <React.Fragment key={message.id || index}>
-              {renderAgentMessage(message)}
-            </React.Fragment>
-          ))}
+          {messages.map((message, index) => {
+            // Generate a truly unique key combining multiple identifiers
+            const uniqueKey = `${message.type}-${message.agent || 'user'}-${index}-${message.messageType || 'default'}`;
+            return (
+              <React.Fragment key={uniqueKey}>
+                {renderAgentMessage(message, uniqueKey)}
+              </React.Fragment>
+            );
+          })}
         </AnimatePresence>
         {loading && (
           <Box sx={{ 
